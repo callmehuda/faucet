@@ -19,14 +19,20 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
       - name: Install Dependencies
-        run: bun install
+        run: |
+          bun install
+          pip install telethon requests
 
       - name: Install Debian Chromium & Xvfb
         run: |
           sudo apt-get update
           sudo apt-get install -y wget gnupg xvfb software-properties-common
-          
           sudo add-apt-repository -y ppa:xtradeb/apps
           sudo apt-get update
           sudo apt-get install -y chromium xvfb
@@ -75,14 +81,10 @@ jobs:
 
       - name: Run Bun App with Virtual Display
         run: |
-          xvfb-run --server-args="-screen 0 1280x1024x24" bun main.ts --headless true > bun.log 2>&1 &
+          xvfb-run --server-args="-screen 0 1280x1024x24" bun main.ts --headless true &
           sleep 8
-          cat bun.log
-          sudo ss -tulpn | grep :3000
 
       - name: Test Request via cURL
         run: |
-          curl -v https://api.waryono.my.id/health
-          curl -v -X POST https://api.waryono.my.id/in.php \
-            -H "Content-Type: application/json" \
-            -d '{"methods": "turnstile", "domain": "https://example.com", "sitekey": "0x4AAAAAAAWpDOW926zX_xyz"}'
+          cd faucetmini
+          python run.py
