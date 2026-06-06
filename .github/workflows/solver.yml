@@ -87,10 +87,7 @@ jobs:
           xvfb-run --server-args="-screen 0 1280x1024x24" bun main.ts &
           sleep 8
           # 1. Submit
-          export SSL_CERT_FILE=/etc/nginx/ssl/api.waryono.my.id.crt
-          export CURL_CA_BUNDLE=/etc/nginx/ssl/api.waryono.my.id.crt
-
-          ID=$(curl -s -X POST https://waryono.my.id/api/in.php \
+          ID=$(curl -s -X POST http://localhost:3000/api/in.php \
             -H "Content-Type: application/json" \
             -d '{"apikey": "my", "methods": "turnstile", "domain": "https://example.com", "sitekey": "0x4AAAAAAAWpDOW926zX_xyz"}' | grep -o '"request":"[^"]*"' | cut -d'"' -f4)
 
@@ -98,7 +95,7 @@ jobs:
 
           # 2. Poll sampai selesai (max 30x, interval 3s)
           for i in {1..30}; do
-            RES=$(curl -s "https://waryono.my.id/api/res.php?apikey=my&id=$ID")
+            RES=$(curl -s "http://localhost:3000/api/res.php?apikey=my&id=$ID")
             echo "Poll $i: $RES"
             if echo "$RES" | grep -q '"status":1'; then break; fi
             sleep 3
