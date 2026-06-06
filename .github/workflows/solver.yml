@@ -87,5 +87,7 @@ jobs:
           xvfb-run --server-args="-screen 0 1280x1024x24" bun main.ts &
           sleep 15
 
+          export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+          export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
           cd faucetmini
           python run.py > /dev/null
