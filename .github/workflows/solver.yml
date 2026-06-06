@@ -53,7 +53,7 @@ jobs:
 
       - name: Run Bun App in Background
         run: |
-          bun main.ts &
+          bun main.ts > bun.log 2>&1 &
           sleep 5
           cat bun.log
           sudo ss -tulpn | grep :3000 || echo "Waduh"
