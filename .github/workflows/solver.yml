@@ -2,10 +2,9 @@ name: Test Bun App with Nginx and Local DNS
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   pull_request:
     branches: [ "main" ]
-  workflow_dispatch:
 
 jobs:
   test-nginx-proxy:
@@ -23,11 +22,20 @@ jobs:
       - name: Install Dependencies
         run: bun install
 
-      - name: Install and Configure Nginx
+      - name: Install Google Chrome & Xvfb
         run: |
           sudo apt-get update
+          sudo apt-get install -y wget gnupg xvfb
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
+      - name: Install and Configure Nginx
+        run: |
           sudo apt-get install -y nginx
           sudo rm -f /etc/nginx/sites-enabled/default
+          
           sudo bash -c 'cat > /etc/nginx/sites-available/api.waryono.my.id <<EOF
           server {
               listen 80;
@@ -46,19 +54,20 @@ jobs:
           sudo ln -s /etc/nginx/sites-available/api.waryono.my.id /etc/nginx/sites-enabled/
           sudo systemctl restart nginx
 
-      - name: Update /etc/hosts (Local DNS Mapping)
+      - name: Update /etc/hosts
         run: |
           sudo bash -c 'echo "127.0.0.1 api.waryono.my.id" >> /etc/hosts'
-          cat /etc/hosts
 
-      - name: Run Bun App in Background
+      - name: Run Bun App with Virtual Display
         run: |
-          bun main.ts > bun.log 2>&1 &
-          sleep 5
+          xvfb-run --server-args="-screen 0 1280x1024x24" bun main.ts --headless true > bun.log 2>&1 &
+          sleep 8
           cat bun.log
-          sudo ss -tulpn | grep :3000 || echo "Waduh"
+          sudo ss -tulpn | grep :3000
 
       - name: Test Request via cURL
         run: |
-          curl -v http://api.waryono.my.id/in.php
-          
+          curl -v http://api.waryono.my.id/health
+          curl -v -X POST http://api.waryono.my.id/in.php \
+            -H "Content-Type: application/json" \
+            -d '{"methods": "turnstile", "domain": "https://example.com", "sitekey": "0x4AAAAAAAWpDOW926zX_xyz"}'
