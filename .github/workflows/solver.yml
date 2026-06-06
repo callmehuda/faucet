@@ -79,12 +79,8 @@ jobs:
         run: |
           sudo bash -c 'echo "127.0.0.1 api.waryono.my.id" >> /etc/hosts'
 
-      - name: Run Bun App with Virtual Display
+      - name: yayaya ini dia
         run: |
-          xvfb-run --server-args="-screen 0 1280x1024x24" bun main.ts --headless true &
-          sleep 8
-
-      - name: Test Request via cURL
-        run: |
+          xvfb-run --server-args="-screen 0 1280x1024x24" bun main.ts &
           cd faucetmini
-          python run.py
+          nohup python run.py
