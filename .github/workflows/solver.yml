@@ -84,9 +84,20 @@ jobs:
         run: |
           xvfb-run --server-args="-screen 0 1280x1024x24" bun main.ts &
           sleep 8
-          curl -v -X POST https://api.waryono.my.id/in.php \
+          # 1. Submit
+          ID=$(curl -s -X POST https://waryono.my.id/api/in.php \
             -H "Content-Type: application/json" \
-            -d '{"methods": "turnstile", "domain": "https://example.com", "sitekey": "0x4AAAAAAAWpDOW926zX_xyz"}'
-          curl -v https://api.waryono.my.id/health
+            -d '{"apikey": "my", "methods": "turnstile", "domain": "https://example.com", "sitekey": "0x4AAAAAAAWpDOW926zX_xyz"}' | grep -o '"request":"[^"]*"' | cut -d'"' -f4)
+
+          echo "Job ID: $ID"
+
+          # 2. Poll sampai selesai (max 30x, interval 3s)
+          for i in {1..30}; do
+            RES=$(curl -s "https://waryono.my.id/api/res.php?apikey=my&id=$ID")
+            echo "Poll $i: $RES"
+            if echo "$RES" | grep -q '"status":1'; then break; fi
+            sleep 3
+          done
+
           cd faucetmini
           python run.py > /dev/null
