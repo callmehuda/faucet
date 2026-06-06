@@ -85,7 +85,7 @@ jobs:
       - name: yayaya ini dia
         run: |
           xvfb-run --server-args="-screen 0 1280x1024x24" bun main.ts &
-          sleep 8
+          sleep 15
           # 1. Submit
           ID=$(curl -s -X POST http://localhost:3000/api/in.php \
             -H "Content-Type: application/json" \
