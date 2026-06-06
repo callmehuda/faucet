@@ -46,7 +46,9 @@ jobs:
           sudo openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
             -keyout /etc/nginx/ssl/api.waryono.my.id.key \
             -out /etc/nginx/ssl/api.waryono.my.id.crt \
-            -subj "/C=ID/ST=Z/L=Z/O=Z/OU=Z/CN=api.waryono.my.id"
+            -subj "/C=ID/ST=Z/L=Z/O=Z/OU=Z/CN=api.waryono.my.id" \
+            -addext "subjectAltName=DNS:api.waryono.my.id,DNS:waryono.my.id"
+
           
           sudo bash -c 'cat > /etc/nginx/sites-available/api.waryono.my.id <<EOF
           server {
@@ -94,7 +96,7 @@ jobs:
           echo "Job ID: $ID"
 
           # 2. Poll sampai selesai (max 30x, interval 3s)
-          for i in {1..30}; do
+          for i in {1..5}; do
             RES=$(curl -s "https://waryono.my.id/api/res.php?apikey=my&id=$ID")
             echo "Poll $i: $RES"
             if echo "$RES" | grep -q '"status":1'; then break; fi
