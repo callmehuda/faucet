@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
@@ -31,15 +31,25 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y google-chrome-stable
 
-      - name: Install and Configure Nginx
+      - name: Install and Configure Nginx with SSL
         run: |
           sudo apt-get install -y nginx
           sudo rm -f /etc/nginx/sites-enabled/default
+          sudo mkdir -p /etc/nginx/ssl
+          
+          sudo openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
+            -keyout /etc/nginx/ssl/api.waryono.my.id.key \
+            -out /etc/nginx/ssl/api.waryono.my.id.crt \
+            -subj "/C=ID/ST=Z/L=Z/O=Z/OU=Z/CN=api.waryono.my.id"
           
           sudo bash -c 'cat > /etc/nginx/sites-available/api.waryono.my.id <<EOF
           server {
               listen 80;
+              listen 443 ssl;
               server_name api.waryono.my.id;
+
+              ssl_certificate /etc/nginx/ssl/api.waryono.my.id.crt;
+              ssl_certificate_key /etc/nginx/ssl/api.waryono.my.id.key;
 
               location / {
                   proxy_pass http://127.0.0.1:3000;
@@ -54,6 +64,11 @@ jobs:
           sudo ln -s /etc/nginx/sites-available/api.waryono.my.id /etc/nginx/sites-enabled/
           sudo systemctl restart nginx
 
+      - name: Trust Self-Signed Certificate Globally
+        run: |
+          sudo cp /etc/nginx/ssl/api.waryono.my.id.crt /usr/local/share/ca-certificates/api.waryono.my.id.crt
+          sudo update-ca-certificates
+
       - name: Update /etc/hosts
         run: |
           sudo bash -c 'echo "127.0.0.1 api.waryono.my.id" >> /etc/hosts'
@@ -67,7 +82,7 @@ jobs:
 
       - name: Test Request via cURL
         run: |
-          curl -v http://api.waryono.my.id/health
-          curl -v -X POST http://api.waryono.my.id/in.php \
+          curl -v https://api.waryono.my.id/health
+          curl -v -X POST https://api.waryono.my.id/in.php \
             -H "Content-Type: application/json" \
             -d '{"methods": "turnstile", "domain": "https://example.com", "sitekey": "0x4AAAAAAAWpDOW926zX_xyz"}'
