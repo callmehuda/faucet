@@ -52,7 +52,7 @@ jobs:
           server {
               listen 80;
               listen 443 ssl;
-              server_name api.waryono.my.id;
+              server_name waryono.my.id;
 
               ssl_certificate /etc/nginx/ssl/api.waryono.my.id.crt;
               ssl_certificate_key /etc/nginx/ssl/api.waryono.my.id.key;
