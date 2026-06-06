@@ -79,6 +79,8 @@ jobs:
       - name: Update /etc/hosts
         run: |
           sudo bash -c 'echo "127.0.0.1 api.waryono.my.id" >> /etc/hosts'
+          sudo bash -c 'echo "127.0.0.1 waryono.my.id" >> /etc/hosts'
+
 
       - name: yayaya ini dia
         run: |
