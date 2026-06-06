@@ -96,14 +96,12 @@ jobs:
           echo "Job ID: $ID"
 
           # 2. Poll sampai selesai (max 30x, interval 3s)
-          for i in {1..5}; do
+          for i in {1..2}; do
             RES=$(curl -s "https://waryono.my.id/api/res.php?apikey=my&id=$ID")
             echo "Poll $i: $RES"
             if echo "$RES" | grep -q '"status":1'; then break; fi
             sleep 3
           done
 
-          export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
-          export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
           cd faucetmini
-          python run.py > /dev/null
+          python run.py
