@@ -8,11 +8,11 @@ on:
 
 jobs:
   test-nginx-proxy:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
@@ -22,12 +22,12 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install Dependencies
         run: |
           bun install
-          pip install telethon requests
+          pip install requests aiohttp
 
       - name: Install Debian Chromium & Xvfb
         run: |
@@ -36,72 +36,10 @@ jobs:
           sudo add-apt-repository -y ppa:xtradeb/apps
           sudo apt-get update
           sudo apt-get install -y chromium xvfb
-
-      - name: Install and Configure Nginx with SSL
-        run: |
-          sudo apt-get install -y nginx
-          sudo rm -f /etc/nginx/sites-enabled/default
-          sudo mkdir -p /etc/nginx/ssl
           
-          sudo openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
-            -keyout /etc/nginx/ssl/api.waryono.my.id.key \
-            -out /etc/nginx/ssl/api.waryono.my.id.crt \
-            -subj "/C=ID/ST=Z/L=Z/O=Z/OU=Z/CN=api.waryono.my.id" \
-            -addext "subjectAltName=DNS:api.waryono.my.id,DNS:waryono.my.id"
-
-          
-          sudo bash -c 'cat > /etc/nginx/sites-available/api.waryono.my.id <<EOF
-          server {
-              listen 80;
-              listen 443 ssl;
-              server_name waryono.my.id;
-              server_name api.waryono.my.id;
-
-              ssl_certificate /etc/nginx/ssl/api.waryono.my.id.crt;
-              ssl_certificate_key /etc/nginx/ssl/api.waryono.my.id.key;
-
-              location / {
-                  proxy_pass http://127.0.0.1:3000;
-                  proxy_set_header Host \$host;
-                  proxy_set_header X-Real-IP \$remote_addr;
-                  proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-                  proxy_set_header X-Forwarded-Proto \$scheme;
-              }
-          }
-          EOF'
-          
-          sudo ln -s /etc/nginx/sites-available/api.waryono.my.id /etc/nginx/sites-enabled/
-          sudo systemctl restart nginx
-
-      - name: Trust Self-Signed Certificate Globally
-        run: |
-          sudo cp /etc/nginx/ssl/api.waryono.my.id.crt /usr/local/share/ca-certificates/api.waryono.my.id.crt
-          sudo update-ca-certificates
-
-      - name: Update /etc/hosts
-        run: |
-          sudo bash -c 'echo "127.0.0.1 api.waryono.my.id" >> /etc/hosts'
-          sudo bash -c 'echo "127.0.0.1 waryono.my.id" >> /etc/hosts'
-
-
       - name: yayaya ini dia
         run: |
           xvfb-run --server-args="-screen 0 1280x1024x24" bun main.ts &
-          sleep 30
-
-          ID=$(curl -s -X POST http://waryono.my.id/api/in.php \
-            -H "Content-Type: application/json" \
-            -d '{"apikey": "my", "methods": "turnstile", "domain": "https://example.com", "sitekey": "0x4AAAAAAAWpDOW926zX_xyz"}' | grep -o '"request":"[^"]*"' | cut -d'"' -f4)
-
-          echo "Job ID: $ID"
-
-          # 2. Poll sampai selesai (max 30x, interval 3s)
-          for i in {1..2}; do
-            RES=$(curl -s "https://waryono.my.id/api/res.php?apikey=my&id=$ID")
-            echo "Poll $i: $RES"
-            if echo "$RES" | grep -q '"status":1'; then break; fi
-            sleep 3
-          done
-
-          cd faucetmini
-          python run.py
+          sleep 5
+          cd sc
+          python popaja.py
