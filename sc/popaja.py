@@ -23,13 +23,13 @@ FAUCET_BASE = "https://faucet.popaja.com"
 SOLVER_BASE = "http://localhost:3000"
 DEFAULT_REFERRER = "mafatifulh@gmail.com"
 COOLDOWN_SECONDS = 600  # 10 menit
-MAX_SOLVER_CONCURRENT = 3
+MAX_SOLVER_CONCURRENT = 10
 LOG_FILE = "popaja.log"
 ACCOUNTS_FILE = "accounts.txt"
 
 # Proxy
 PROXY_SOURCE = "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=ipport&format=text&protocol=http&timeout=8000"
-PROXY_REFRESH_INTERVAL = 1800  # 30 menit
+PROXY_REFRESH_INTERVAL = 300  # 30 menit
 MAX_RETRY_WITH_PROXY = 3
 
 # ========== SETUP LOGGING ==========
@@ -327,7 +327,7 @@ def main():
     for acc in accounts:
         try:
             stats = acc.init_session()
-            logger.info(f"[{acc.email}] Inisialisasi OK. Terakhir claim: {datetime.fromtimestamp(acc.last_claim_time)}")
+            #logger.info(f"[{acc.email}] Inisialisasi OK. Terakhir claim: {datetime.fromtimestamp(acc.last_claim_time)}")
         except Exception as e:
             logger.error(f"[{acc.email}] Gagal inisialisasi: {e}")
 
