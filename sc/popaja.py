@@ -28,7 +28,7 @@ LOG_FILE = "popaja.log"
 ACCOUNTS_FILE = "accounts.txt"
 
 # Proxy
-PROXY_SOURCE = "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=text&protocol=http"
+PROXY_SOURCE = "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=ipport&format=text&protocol=http&timeout=8000"
 PROXY_REFRESH_INTERVAL = 1800  # 30 menit
 MAX_RETRY_WITH_PROXY = 3
 
