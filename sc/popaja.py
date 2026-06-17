@@ -23,7 +23,7 @@ FAUCET_BASE = "https://faucet.popaja.com"
 SOLVER_BASE = "http://localhost:3000"
 DEFAULT_REFERRER = "mafatifulh@gmail.com"
 COOLDOWN_SECONDS = 600  # 10 menit
-MAX_SOLVER_CONCURRENT = 5
+MAX_SOLVER_CONCURRENT = 3
 LOG_FILE = "popaja.log"
 ACCOUNTS_FILE = "accounts.txt"
 
