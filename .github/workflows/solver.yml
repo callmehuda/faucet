@@ -44,7 +44,7 @@ jobs:
           xvfb-run --server-args="-screen 0 1280x1024x24" bun main.ts &
           sleep 5
           cd sc
-          timeout 240m python popaja.py || true
+          timeout 300m python popaja.py || true
 
       - name: Commit & Push
         run: |
@@ -53,4 +53,4 @@ jobs:
           echo "Last run: $(date '+%Y-%m-%d %H:%M:%S')" > last_run.txt
           git add last_run.txt
           git diff --staged --quiet || git commit -m "chore: update last run $(date '+%Y-%m-%d %H:%M')"
-          git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git main
+          git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git actions
