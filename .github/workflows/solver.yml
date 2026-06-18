@@ -2,7 +2,7 @@ name: Test Bun App with Nginx and Local DNS
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: [ "actions" ]
   pull_request:
     branches: [ "main" ]
 
