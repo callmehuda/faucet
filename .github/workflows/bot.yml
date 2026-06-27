@@ -44,6 +44,14 @@ jobs:
           pip install opencv-python-headless rich aiohttp
           timeout 300 python3 bot.py || true
 
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+            # A file, directory or wildcard pattern that describes what to upload.
+            path: bctt.log
+            archive: false # optional, default is true
+          
+
       - name: Commit & Push
         run: |
           git config user.name "callmehuda"
