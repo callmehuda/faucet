@@ -1,9 +1,0 @@
-{
-  "dependencies": {
-    "@hono/node-server": "^2.0.4",
-    "dotenv": "^17.4.2",
-    "hono": "^4.12.23",
-    "puppeteer-real-browser": "^1.4.4",
-    "zod": "^4.4.3"
-  }
-}
