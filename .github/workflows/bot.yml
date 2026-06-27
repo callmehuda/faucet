@@ -31,7 +31,7 @@ jobs:
 
           config = {
               "email": os.environ["EMAIL"],
-              "password": os.environ["PASSWORD"]
+              "password": os.environ["PASSWORD"],
               "apikey": os.environ["WARYONO"]
           }
 
@@ -41,8 +41,8 @@ jobs:
 
       - name: Run task
         run: |
-          pip install opencv, rich, aiohttp, pycryptodome
-          python3 bot.py
+          pip install opencv, rich, aiohttp
+          timeout 300 python3 bot.py || true
 
       - name: Commit & Push
         run: |
@@ -51,4 +51,4 @@ jobs:
           echo "Last run: $(date '+%Y-%m-%d %H:%M:%S')" > last_run.txt
           git add last_run.txt
           git diff --staged --quiet || git commit -m "chore: update last run $(date '+%Y-%m-%d %H:%M')"
-          git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git actions
+          git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:actions
