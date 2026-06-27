@@ -679,7 +679,7 @@ class Bot:
             await asyncio.sleep(random.uniform(1, 3))
 
     async def run(self):
-        async with aiohttp.ClientSession() as sess:
+        async with aiohttp.ClientSession(trust_env=True) as sess:
             c = Client(sess)
             cfg = _load_cfg()
             e, pw, ak = cfg.get("email",""), cfg.get("password",""), cfg.get("apikey","")
