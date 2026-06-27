@@ -12,9 +12,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        email:
-          - thomasslebew24410@gmail.com
-          - cihuyyhuda@gmail.com
+        include:
+          - email: thomasslebew24410@gmail.com
+            proxy: "socks5h://37.120.189.175:1080"
+          - email: cihuyyhuda@gmail.com
+            proxy: "socks5h://157.90.183.51:5555"
 
     steps:
       - uses: actions/checkout@v7  # FIX: latest, v6 bukan latest
@@ -44,6 +46,7 @@ jobs:
       - name: Run task
         run: |
           pip install opencv-python rich aiohttp
+          export ALL_PROXY=${{ matrix.proxy }}
           timeout 300 python3 bot.py || true
 
       - name: Upload a Build Artifact
