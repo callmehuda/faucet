@@ -109,18 +109,31 @@ class Waryono:
 
     async def _jp(self, url, **kw):
         kw.setdefault("timeout", aiohttp.ClientTimeout(total=TMO))
+        kw.setdefault("headers", {})["Accept-Encoding"] = "gzip, deflate"  # FIX: hapus br
         try:
             async with self._s.post(url, **kw) as r:
-                return await r.json(content_type=None)
-        except Exception:
+                txt = await r.text()
+                _log_bctt(f"WARYONO _jp status={r.status} body={txt[:200]}")
+                try:
+                    return json.loads(txt)
+                except Exception:
+                    return {}
+        except Exception as ex:
+            _log_bctt(f"WARYONO _jp exception: {ex}")
             return {}
 
     async def _jg(self, url, **kw):
         kw.setdefault("timeout", aiohttp.ClientTimeout(total=TMO))
+        kw.setdefault("headers", {})["Accept-Encoding"] = "gzip, deflate"  # FIX: hapus br
         try:
             async with self._s.get(url, **kw) as r:
-                return await r.json(content_type=None)
-        except Exception:
+                txt = await r.text()
+                try:
+                    return json.loads(txt)
+                except Exception:
+                    return {}
+        except Exception as ex:
+            _log_bctt(f"WARYONO _jg exception: {ex}")
             return {}
 
     async def solve_bitco(self, body):
@@ -129,7 +142,7 @@ class Waryono:
             "apikey": self._k,
             "methods": "bitcocaptcha",
             "type": "canvas",
-            "body": body,        # langsung dict, tidak perlu json.dumps
+            "body": body,
             "json": 1,
         })
         _log_bctt(f"WARYONO submit resp={d}")
@@ -153,9 +166,8 @@ class Waryono:
         _log_bctt("WARYONO timeout")
         return None
 
-# ── BitcoTasks external PTC solver (asyncio version) ──────────
+# ── BitcoTasks external PTC solver ────────────────────────────
 
-# Hardcoded browser hints sesuai BCTT_UA (Android Chrome 125)
 _BCTT_CH_UA   = '"Chromium";v="125", "Not(A:Brand";v="24", "Google Chrome";v="125"'
 _BCTT_CH_MOB  = "?1"
 _BCTT_CH_PLAT = '"Android"'
@@ -195,6 +207,7 @@ class BcttSolver:
             "User-Agent": self._ua,
             "Upgrade-Insecure-Requests": "1",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Encoding": "gzip, deflate",  # FIX: hapus br
             "Sec-Fetch-Site": self._fetch_site(url, referer),
             "Sec-Fetch-Mode": "navigate",
             "Sec-Fetch-User": "?1",
@@ -215,6 +228,7 @@ class BcttSolver:
             "User-Agent": self._ua,
             "X-Requested-With": "XMLHttpRequest",
             "Accept": "*/*",
+            "Accept-Encoding": "gzip, deflate",  # FIX: hapus br
             "Content-Type": "application/x-www-form-urlencoded",
             "Sec-Fetch-Site": self._fetch_site(url, referer),
             "Sec-Fetch-Mode": "cors",
@@ -231,7 +245,7 @@ class BcttSolver:
         try:
             _log_bctt(f"GET {actual[:120]}")
             async with self._s.get(actual, headers=hdr, timeout=aiohttp.ClientTimeout(total=TMO)) as r:
-                txt = await r.text()
+                txt = await r.text()  # FIX: pakai text() bukan read()
                 _log_bctt(f"GET => {len(txt)}ch status={r.status}")
                 return txt
         except Exception as ex:
@@ -244,7 +258,7 @@ class BcttSolver:
         try:
             _log_bctt(f"POST {actual[:120]} data_keys={list(data.keys()) if isinstance(data, dict) else '?'}")
             async with self._s.post(actual, headers=hdr, data=data, timeout=aiohttp.ClientTimeout(total=TMO)) as r:
-                txt = await r.text()
+                txt = await r.text()  # FIX: pakai text() bukan read()
                 _log_bctt(f"POST => {r.status} body={txt[:300]}")
                 try:
                     return json.loads(txt)
@@ -261,7 +275,6 @@ class BcttSolver:
             return False
         start = time.time()
         try:
-            # A: find redirect
             _log_bctt(f"A: GET {url[:80]}")
             page0 = await self._gt(url)
             m = re.search(r"window\.location\.href\s*=\s*['\"]([^'\"]+)['\"]", page0)
@@ -271,18 +284,15 @@ class BcttSolver:
             dest = m.group(1)
             _log_bctt(f"A: dest={dest[:80]}")
 
-            # B: GET dest dulu untuk establish session/cookie
             _log_bctt("B: GET dest first")
             page_pre = await self._gt(dest, referer=url)
             if "Forbidden" in page_pre:
                 _log_bctt("B: Forbidden on initial GET!")
                 return False
 
-            # Baru POST start_view, gunakan dest sebagai Referer (bukan url)
             _log_bctt("B: start_view")
             await self._pj(dest, data={"action": "start_view"}, referer=dest)
 
-            # GET lagi untuk ambil params
             page = await self._gt(dest, referer=dest)
             if "Forbidden" in page:
                 _log_bctt("B: Forbidden!")
@@ -291,21 +301,18 @@ class BcttSolver:
             p = self._params(page, tmr)
             if not p:
                 _log_bctt(f"B: _params fail, page={len(page)}ch")
-                # Save HTML snippet for debugging
                 for name in ["hash", "token", "sub_id", "api_key"]:
                     m = re.search(rf'name=["\']?{name}["\']?.{{0,80}}', page)
                     _log_bctt(f"  {name}: {'MATCH: '+m.group(0)[:80] if m else 'NOT FOUND'}")
-                # Also save page to file
                 try:
                     with open("bctt_page.html", "w") as f:
                         f.write(page)
-                    _log_bctt("  saved bctt_page.html (first 5000ch)")
+                    _log_bctt("  saved bctt_page.html")
                 except Exception:
                     pass
                 return False
             _log_bctt(f"B: timer={p['timer']} action={p['action']}")
 
-            # C: get captcha JS
             src = re.search(r'<script[^>]+src=["\']([^"\']*captcha2/[^"\']*)["\']', page)
             if not src:
                 _log_bctt("C: no captcha2 script")
@@ -323,7 +330,6 @@ class BcttSolver:
                 return False
             _log_bctt(f"C: Fid={fjs['cc_Fid']} Fnm={fjs['cc_Fnm']} ver={fjs['cc_ver']} end={fjs['cc_end']}")
 
-            # D: get puzzle captcha
             m2 = re.search(r'fetch\("([^"]+captcha[^"]+\.js\?action=captcha)"', js)
             ep = m2.group(1) if m2 else src.group(1)
             _log_bctt(f"D: ep={ep[:80]}")
@@ -334,7 +340,6 @@ class BcttSolver:
                 return False
             _log_bctt(f"D: {len(cap['options'])} opts ch={str(cap.get('challenge',''))[:16]} diff={cap.get('difficulty')}")
 
-            # E: solve via waryono
             if on_status:
                 await on_status("solving")
             sol = await self._solve(cap)
@@ -343,7 +348,6 @@ class BcttSolver:
                 return False
             _log_bctt(f"E: ans={sol['cap']} nonce={sol['pow']['nonce']}")
 
-            # F: submit captcha → get token
             pl = self._payload(fjs, sol)
             _log_bctt(f"F: url={pl['url'][:60]} keys={list(pl['data'].keys())}")
             d = await self._pj(pl["url"], data=pl["data"], referer=dest)
@@ -353,7 +357,6 @@ class BcttSolver:
                 return False
             _log_bctt(f"F: tok={str(tok)[:40]}")
 
-            # G: wait timer
             wait = p["timer"] - (time.time() - start)
             if on_status:
                 await on_status("viewing", time.time() + max(0, wait), p["timer"])
@@ -361,7 +364,6 @@ class BcttSolver:
                 _log_bctt(f"G: wait {math.ceil(wait)}s")
                 await asyncio.sleep(math.ceil(wait))
 
-            # H: submit final
             _log_bctt("H: final submit")
             ok = await self._submit(fjs, p, tok, dest)
             _log_bctt(f"H: {'OK' if ok else 'FAIL'}")
@@ -398,7 +400,6 @@ class BcttSolver:
         ans = await self._w.solve_bitco(data)
         if ans is None:
             return None
-        # Parse "class:fa-book, array:1" → 1
         if isinstance(ans, str):
             m = re.search(r'array[:\s]*(\d+)', ans, re.IGNORECASE)
             if m:
@@ -449,14 +450,11 @@ class BcttSolver:
         return ok
 
     def _val(self, html, name):
-        # Coba dulu HTML input (cara lama)
         m = re.search(rf'name=["\']?{re.escape(name)}["\']?\s+value=["\']([^"\']*)["\']', html)
         if not m:
             m = re.search(rf'value=["\']([^"\']*)["\'].*?name=["\']?{re.escape(name)}["\']?', html)
         if m:
             return m.group(1)
-        
-        # Fallback: JS variable (cara baru situs)
         m = re.search(rf"var\s+{re.escape(name)}\s*=\s*['\"]([^'\"]+)['\"]", html)
         return m.group(1) if m else None
 
@@ -472,7 +470,13 @@ class Client:
         self._s, self._tok, self._nc = sess, None, None
 
     def _h(self):
-        h = {"Accept": "application/json", "User-Agent": UA, "Origin": ORIGIN, "Referer": REFERER}
+        h = {
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip, deflate",  # FIX: hapus br
+            "User-Agent": UA,
+            "Origin": ORIGIN,
+            "Referer": REFERER,
+        }
         if self._tok: h["Authorization"] = f"Bearer {self._tok}"
         return h
 
@@ -484,7 +488,15 @@ class Client:
                 kw["data"] = json.dumps(kw.pop("json"))
                 kw["headers"]["Content-Type"] = "application/json"
             async with self._s.request(m, f"{BASE_URL}{p}", **kw) as r:
-                d = await r.json() if r.status != 204 else {}
+                # FIX: pakai text() lalu json.loads() agar tidak crash di Brotli
+                if r.status != 204:
+                    txt = await r.text()
+                    try:
+                        d = json.loads(txt)
+                    except Exception:
+                        d = {}
+                else:
+                    d = {}
                 await asyncio.sleep(DLY + random.uniform(0, 0.5))
                 return r.status, d
         except Exception:
