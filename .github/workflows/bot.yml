@@ -1,0 +1,54 @@
+name: Parallel jobs by email
+
+on:
+  push:
+    branches: "actions"
+  workflow_dispatch:
+
+jobs:
+  run-per-email:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        email:
+          - thomasslebew24410@gmail.com
+          - cihuyyhuda@gmail.com
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Buat config.json
+        env:
+          EMAIL: ${{ matrix.email }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          WARYONO: ${{ secrets.WARYONO }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          config = {
+              "email": os.environ["EMAIL"],
+              "password": os.environ["PASSWORD"]
+              "apikey": os.environ["WARYONO"]
+          }
+
+          with open("config.json", "w") as f:
+              json.dump(config, f, indent=2)
+          PY
+
+      - name: Run task
+        run: |
+          pip install opencv, rich, aiohttp, pycryptodome
+          python3 bot.py
+
+      - name: Commit & Push
+        run: |
+          git config user.name "callmehuda"
+          git config user.email "mafatikhul.huda118@smk.belajar.id"
+          echo "Last run: $(date '+%Y-%m-%d %H:%M:%S')" > last_run.txt
+          git add last_run.txt
+          git diff --staged --quiet || git commit -m "chore: update last run $(date '+%Y-%m-%d %H:%M')"
+          git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git actions
