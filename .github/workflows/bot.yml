@@ -41,7 +41,7 @@ jobs:
 
       - name: Run task
         run: |
-          pip install opencv-python-headless rich aiohttp brotlicffi Brotli
+          pip install opencv-python-headless rich aiohttp
           timeout 300 python3 bot.py || true
 
       - name: Commit & Push
