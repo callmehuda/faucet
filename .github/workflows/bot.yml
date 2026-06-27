@@ -18,6 +18,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7  # FIX: latest, v6 bukan latest
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Buat config.json
         env:
@@ -41,14 +43,14 @@ jobs:
 
       - name: Run task
         run: |
-          pip install opencv-python-headless rich aiohttp
+          pip install opencv-python rich aiohttp
           timeout 300 python3 bot.py || true
 
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v7  # FIX: pakai @v7 bukan @v7.0.1
         with:
           name: bctt-log-${{ matrix.email }}  # FIX: wajib unik antar matrix job
-          path: bctt.log
+          path: ./bctt.log
           archive: false
           if-no-files-found: ignore
 
