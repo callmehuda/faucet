@@ -47,7 +47,7 @@ jobs:
         run: |
           pip install opencv-python rich aiohttp
           export ALL_PROXY=${{ matrix.proxy }}
-          timeout 300 python3 bot.py || true
+          timeout 300 python3 generate.py || true
 
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v7  # FIX: pakai @v7 bukan @v7.0.1
