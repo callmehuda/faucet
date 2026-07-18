@@ -1,4 +1,6 @@
-import requests, base64, hashlib, json, math, random, re, string, sys, time
+import requests, base64, hashlib, json, math, random, re, string, sys, time, os
+
+PROXIES = (lambda: {k.lower(): os.environ.get(k) for k in ["HTTPS_PROXY","HTTP_PROXY"] if os.environ.get(k)} or None)()
 from urllib.parse import urlparse, urljoin
 import cv2, numpy as np
 
@@ -57,7 +59,6 @@ def pow_(ch, diff):
         if h.startswith(prefix): return {"nonce": nonce, "hash": h}
         nonce += 1
 
-# FIX 1: Perbaikan Unpacking Dictionary via Opsi B (Singkat & Rapi)
 def load_cfg(path="config.json"):
     try: cfg = json.load(open(path))
     except: cfg = {}
@@ -87,9 +88,9 @@ class Waryono:
 class BcttSolver:
     def __init__(self, w):
         self._w = w; self._s = requests.Session()
+        if PROXIES: self._s.proxies.update(PROXIES)
         self._ua = BCTT_UA
 
-    # FIX 2: Otomatisasi URL builder anti "No scheme supplied"
     def _url(self, p):
         if not p: return BCTT_HOST
         if p.startswith("http"): return p
@@ -100,7 +101,6 @@ class BcttSolver:
         try: return "same-origin" if urlparse(url).netloc == urlparse(ref).netloc else "cross-site"
         except: return "none"
 
-    # FIX 3: Penyelarasan Headers murni dari versi Bot yang bekerja
     def _get(self, url, ref=None):
         actual = self._url(url)
         h = {
@@ -196,7 +196,6 @@ class BcttSolver:
             if (m := re.search(pat, html)) and m.group(1) != "start_view": return m.group(1)
         return "proccessLead"
 
-    # FIX 4: Fleksibilitas Regex Ekstraksi JavaScript Tingkat Tinggi (Anti Gagal Parse)
     def _parse_js(self, js):
         r = {}; skip = {"_et", "_mv", "_cf", "_pw", "_ch", "_bh"}
         if m := re.search(r'(?:var|let|const)\s+payload\s*=\s*["\']([^"\']+)["\']', js) or re.search(r'var payload = "([^"]+)"', js):
@@ -244,6 +243,7 @@ class BcttSolver:
 class Client:
     def __init__(self):
         self._s = requests.Session()
+        if PROXIES: self._s.proxies.update(PROXIES)
         self._s.headers.update({"Accept": "application/json", "User-Agent": UA,
                                 "Origin": "https://cryptifo.com", "Referer": "https://cryptifo.com/",
                                 "Accept-Encoding": "gzip, deflate"})
