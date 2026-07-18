@@ -14,7 +14,10 @@ jobs:
       matrix:
         include:
           - email: thomasslebew24410@gmail.com
+            proxy: "http://vawrvjvg:2q0xxwolytw7@31.56.127.193:7684"
           - email: cihuyyhuda@gmail.com
+            proxy: "http://vawrvjvg:2q0xxwolytw7@31.59.20.176:6754"
+
     steps:
       - uses: actions/checkout@v7
         with:
@@ -43,7 +46,9 @@ jobs:
       - name: Run task
         run: |
           pip install opencv-python
+          export HTTP_PROXY=${{ matrix.proxy }}
           timeout 300 python3 bot.py || true
+
 
       - name: Commit & Push
         run: |
