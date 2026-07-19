@@ -27,7 +27,6 @@ def log_raw(tag, label, data, color=C.CY):
     if isinstance(data, dict):
         print(f"{C.D}{json.dumps(data, indent=2, ensure_ascii=False)}{C.X}")
     elif isinstance(data, str):
-        # Truncate jika terlalu panjang
         if len(data) > 2000:
             print(f"{C.D}{data[:1000]}...\n[...truncated {len(data)-2000} chars...]\n{data[-1000:]}{C.X}")
         else:
@@ -110,15 +109,12 @@ class Waryono:
             log("waryono", "sending captcha to API...", C.B)
             payload = {"apikey": self._k, "methods": "bitcocaptcha", "type": "canvas", "body": body, "json": 1}
             log_raw("waryono", "REQUEST PAYLOAD", payload)
-
             d = requests.post("https://api.waryono.my.id/in.php",
                 json=payload, timeout=30).json()
             log_raw("waryono", "IN.PHP RESPONSE", d, C.G)
-
             if d.get("status") != 1 or not (tid := d.get("request")):
                 log("waryono", f"API error: status={d.get('status')} request={d.get('request')}", C.R)
                 return None
-
             log("waryono", f"task_id={tid}, polling result...", C.Y)
             for attempt in range(90):
                 time.sleep(4)
@@ -145,7 +141,7 @@ class BcttSolver:
     def _url(self, p):
         if not p: return BCTT_HOST
         if p.startswith("http"): return p
-        return f"{BCTT_HOST.rstrip('/')}/{p.lstrip('/')}"
+        return f"{BCTT_HOST.rstrip('/')}/{p.lstrip('/')}".rstrip("/")
 
     def _fetch_site(self, url, ref):
         if not ref: return "none"
@@ -216,21 +212,17 @@ class BcttSolver:
         try:
             start = time.time()
             log("bctt", f"starting: {url[:60]}...", C.B)
-
             page0 = self._get(url)
-            if not (m := re.search(r"window\.location\.href\s*=\s*['"]([^'"]+)['"]", page0)):
+            if not (m := re.search(r"window\.location\.href\s*=\s*['\"]([^'\"]+)['\"]", page0)):
                 log("bctt", "no redirect found in page0", C.R)
                 return False
             dest = m.group(1)
             log("bctt", f"redirect -> {dest[:60]}...", C.CY)
-
             if "Forbidden" in self._get(dest, ref=url):
                 log("bctt", "Forbidden on dest", C.R)
                 return False
-
             start_resp = self._post(dest, {"action": "start_view"}, ref=dest)
             log_raw("bctt", "START_VIEW RESPONSE", start_resp, C.Y)
-
             page = self._get(dest, ref=dest)
             if "Forbidden" in page:
                 log("bctt", "Forbidden on page", C.R)
@@ -239,42 +231,35 @@ class BcttSolver:
                 log("bctt", "params extraction failed", C.R)
                 return False
             log_raw("bctt", "EXTRACTED PARAMS", p, C.M)
-
             if not (src := re.search(r'<script[^>]+src=["\']([^"\']*captcha2/[^"\']*)["\']', page)):
                 log("bctt", "captcha script not found", C.R)
                 return False
             log("bctt", f"captcha script: {src.group(1)[:60]}...", C.CY)
-
             js = self._get(src.group(1), ref=dest)
             if not (fjs := self._parse_js(js)):
                 log("bctt", "JS parsing failed", C.R)
                 return False
             log_raw("bctt", "PARSED JS VARS", fjs, C.M)
-
-            m2 = re.search(r'fetch\("([^"]+captcha[^"]+\.js\?action=captcha)"', js)
+            # FIXED: allow additional query params after action=captcha
+            m2 = re.search(r'fetch\("([^"]*captcha[^"]*\.js\?action=captcha[^"]*)"', js)
             ep = m2.group(1) if m2 else src.group(1)
-
             cap = self._post(ep, {"t": int(time.time() * 1000), "r": random.random()}, ref=dest)
             if not cap.get("options") or not cap.get("pixel"):
                 log("bctt", "captcha data incomplete", C.R)
                 return False
-            log_raw("bctt", "CAPTCHA DATA", {"options": cap.get("options", {})[:3] if isinstance(cap.get("options"), list) else cap.get("options"), 
+            log_raw("bctt", "CAPTCHA DATA", {"options": cap.get("options", {})[:3] if isinstance(cap.get("options"), list) else cap.get("options"),
                                              "pixel_len": len(cap.get("pixel","")), "challenge": cap.get("challenge")}, C.Y)
-
             if not (sol := self._solve(cap)):
                 log("bctt", "captcha solving failed", C.R)
                 return False
             log_raw("bctt", "CAPTCHA SOLUTION", sol, C.G)
-
             pl = self._payload(fjs, sol)
             log_raw("bctt", "PAYLOAD", pl, C.CY)
-
             d = self._post(pl["url"], pl["data"], ref=dest)
             if not (tok := d.get(fjs["cc_ver"])):
                 log("bctt", f"token not found (expected key: {fjs['cc_ver']})", C.R)
                 return False
             log("bctt", f"token received: {str(tok)[:30]}...", C.G)
-
             if (wait := p["timer"] - (time.time() - start)) > 0:
                 log("bctt", f"waiting {math.ceil(wait)}s...", C.Y)
                 time.sleep(math.ceil(wait))
@@ -286,10 +271,16 @@ class BcttSolver:
             return False
 
     def _val(self, html, name):
-        for pat in [rf'name=["\']?{re.escape(name)}["\']?\s+value=["\']([^"\']*)["\']',
-                    rf'value=["\']([^"\']*)["\'].*?name=["\']?{re.escape(name)}["\']?',
-                    rf"var\s+{re.escape(name)}\s*=\s*['"]([^'"]+)['"]"]:
-            if m := re.search(pat, html): return m.group(1)
+        """Extract value by name from HTML. Tries multiple patterns in order of reliability."""
+        # Pattern 1: name="X" value="Y" (most common, most reliable)
+        pat1 = rf'name=["\']?{re.escape(name)}["\']?\s+value=["\']([^"\']*)["\']'
+        if m := re.search(pat1, html): return m.group(1)
+        # Pattern 2: JS variable assignment
+        pat2 = rf"var\s+{re.escape(name)}\s*=\s*['\"]([^'\"]+)['\"]"
+        if m := re.search(pat2, html): return m.group(1)
+        # Pattern 3: value="Y" name="X" (fallback, constrained to same tag area)
+        pat3 = rf'value=["\']([^"\']*)["\'][^<]*?name=["\']?{re.escape(name)}["\']?'
+        if m := re.search(pat3, html): return m.group(1)
         return None
 
     def _params(self, page, tmr):
@@ -306,15 +297,19 @@ class BcttSolver:
 
     def _parse_js(self, js):
         r = {}; skip = {"_et", "_mv", "_cf", "_pw", "_ch", "_bh"}
+        # Pattern 1: payload variable
         if m := re.search(r'(?:var|let|const)\s+payload\s*=\s*["\']([^"\']+)["\']', js) or re.search(r'var payload = "([^"]+)"', js):
             r["cc_ran"] = {k: v for pair in m.group(1).split("&") if "=" in pair
                            for k, v in [pair.split("=", 1)] if k not in skip}
+        # Pattern 2 & 3: hidden input (two attribute orderings)
         if m := re.search(r'<input\s+type=["\']hidden["\']\s+id=["\']([^"\']+)["\']\s+name=["\']([^"\']+)["\']>', js) or \
                 re.search(r'<input\s+id=["\']([^"\']+)["\']\s+name=["\']([^"\']+)["\']\s+type=["\']hidden["\']>', js) or \
                 re.search(r'<input type="hidden" id="([^"]+)" name="([^"]+)">', js):
             r["cc_Fid"], r["cc_Fnm"] = m.group(1), m.group(2)
+        # Pattern 4: xhr endpoint
         if m := re.search(r'xhr\.open\("POST",\s*["\']([^"\']+)["\']', js) or re.search(r'fetch\(\s*["\']([^"\']+)["\']', js):
             r["cc_end"] = m.group(1)
+        # Pattern 5: response key mapping
         if r.get("cc_Fid"):
             f_esc = re.escape(r["cc_Fid"])
             if m := re.search(r'getElementById\(["\']' + f_esc + r'["\']\)\.value\s*=\s*response\.(\w+)', js) or \
@@ -351,9 +346,6 @@ class BcttSolver:
         log_raw("bctt", "FINAL SUBMIT RESPONSE", d, C.G if ok else C.R)
         return ok
 
-# ============================================================
-# CRYPTIFO CLIENT WITH FULL LOGGING
-# ============================================================
 class Client:
     def __init__(self):
         self._s = requests.Session()
@@ -369,7 +361,6 @@ class Client:
         try:
             log_raw("cryptifo", f"{m} {url}", {"headers": {**self._s.headers, **h}, "body": data}, C.B)
             r = self._s.request(m, url, json=data, headers=h, timeout=30)
-
             raw_info = {
                 "status_code": r.status_code,
                 "content_type": r.headers.get("Content-Type", "unknown"),
@@ -377,7 +368,6 @@ class Client:
                 "response_headers": dict(r.headers),
             }
             log_raw("cryptifo", f"RESPONSE {r.status_code}", raw_info, C.G)
-
             try:
                 parsed = r.json()
                 log_raw("cryptifo", "PARSED JSON", parsed, C.Y)
@@ -488,7 +478,6 @@ class Client:
         if not (gtk := dv.get("generation_token")):
             log("shortlink", "no generation_token", C.R)
             return None
-
         self.sync()
         log("shortlink", f"generate-verified id={shid}", C.B)
         _, dg = self.p(f"/shortlinks/generate-verified/{shid}", {"generation_token": gtk, "fingerprint": f.get("device_id")})
@@ -496,7 +485,6 @@ class Client:
         if not dg.get("shortened_url"):
             log("shortlink", "no shortened_url", C.R)
             return None
-
         time.sleep(5); self.sync()
         log("shortlink", f"claiming id={shid}", C.B)
         sc, dc = self.p("/shortlinks/claim", {"shortlink_id": shid, "fingerprint": f})
@@ -583,9 +571,7 @@ def do_short(c):
             log("shortlink", f"id={shid} claim {i+1}/{available} {'done' if claim else 'fail'}", C.G if claim else C.R)
 
 def main():
-    # Log proxy info pertama kali
     log_proxy_info()
-
     e, pw, ak = load_cfg()
     c = Client()
     log("auth", "solving login captcha...", C.B)
@@ -593,7 +579,6 @@ def main():
     ok, name = c.login(e, pw, ct)
     if not ok: log("auth", f"login fail: {name}", C.R); sys.exit(1)
     log("auth", f"logged in as {name}", C.G)
-
     while True:
         do_short(c); do_ptc(c); do_ptc_ext(c, Waryono(ak)); do_faucet(c); time.sleep(5)
 
